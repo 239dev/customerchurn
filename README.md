@@ -10,6 +10,10 @@ explains the model with SHAP instead of just scoring it, audits whether its own
 predicted probabilities can be trusted, and optimizes the classification
 threshold against actual retention economics instead of defaulting to 0.5.
 
+**[Live demo](#)** -- score a hypothetical customer with a live SHAP explanation,
+and drag the offer-cost/LTV/effectiveness sliders to see the optimal threshold
+recompute in real time, off the actual test set. (Deploy instructions below.)
+
 ## Key results
 
 | Model | CV ROC-AUC | Test ROC-AUC | Recall (churn) | Precision (churn) |
@@ -185,6 +189,33 @@ Built and tested against pandas 3.0.5 specifically — it's a very recent major
 version, and `src/data.py` has a comment on a real bug that version introduced
 (see the tests for the regression check).
 
+## Live demo
+
+`app/streamlit_app.py` is a small Streamlit app on top of the same `src/`
+code — no duplicated logic. Two tabs:
+
+- **Score a customer** — fill in a hypothetical customer's attributes, get
+  the production model's churn probability, and see a live SHAP waterfall
+  explaining that specific prediction.
+- **Cost & threshold simulator** — drag the offer cost / LTV / effectiveness
+  sliders and watch the optimal threshold and the cost-vs-threshold curve
+  recompute live, off the real 1,409 held-out test customers
+  (`app/data/test_predictions.csv` — the model's own predictions, not the
+  raw dataset, so it's safe to commit).
+
+Run it locally:
+
+```bash
+pip install -r app/requirements.txt
+streamlit run app/streamlit_app.py
+```
+
+To deploy: push this repo to GitHub, go to [share.streamlit.io](https://share.streamlit.io),
+sign in with GitHub, click **New app**, point it at this repo with main file
+path `app/streamlit_app.py` — it picks up `app/requirements.txt` automatically
+since it sits next to the entrypoint. Free, and the URL goes straight in a
+resume.
+
 ## Repo structure
 
 ```
@@ -216,6 +247,11 @@ teleco-churn/
 │   ├── test_data.py          # cleaning logic, incl. a regression test for the pandas 3.0 bug
 │   ├── test_evaluate.py      # cost-model math
 │   └── test_features.py      # preprocessing pipeline
+├── app/
+│   ├── streamlit_app.py      # live demo -- imports straight from src/, no duplicated logic
+│   ├── requirements.txt      # scoped to what the app needs (no jupyter/pytest)
+│   └── data/
+│       └── test_predictions.csv  # model's own predictions on the test set (safe to commit)
 ├── reports/
 │   └── figures/              # exported PNGs (embedded above)
 └── models/
@@ -226,7 +262,6 @@ teleco-churn/
 
 ## What's not built yet
 
-Two extensions from the original project plan are deliberately out of scope
-for this version and are natural next steps: a FastAPI + Streamlit deployment
-with live threshold sliders, and Kaplan-Meier / Cox survival analysis to
-answer *when* a customer is likely to churn rather than just *whether*.
+One extension from the original project plan is deliberately out of scope for
+this version: Kaplan-Meier / Cox survival analysis, to answer *when* a
+customer is likely to churn rather than just *whether*.
