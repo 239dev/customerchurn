@@ -1,0 +1,4 @@
+Model,CV ROC-AUC,Test ROC-AUC,Recall (churn),Precision (churn)
+Predict-majority baseline,0.5,0.5,0.0,
+Logistic regression,,0.841,0.78,0.5
+XGBoost (tuned),0.845,0.842,0.79,0.52

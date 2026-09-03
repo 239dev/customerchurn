@@ -1,0 +1,8 @@
+{
+  "brier_uncalibrated": 0.16268061101436615,
+  "brier_calibrated": 0.13574298404668503,
+  "optimal_threshold_uncalibrated": 0.23,
+  "optimal_threshold_calibrated": 0.13,
+  "cost_uncalibrated": 418620.0,
+  "cost_calibrated": 418050.0
+}
