@@ -1,10 +1,9 @@
-"""Day 4-7: split, baseline logistic regression, tuned XGBoost."""
+"""Train/test split, logistic regression baseline, tuned XGBoost."""
 from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
-    classification_report, roc_auc_score, average_precision_score,
-    confusion_matrix,
+    classification_report, roc_auc_score, average_precision_score, confusion_matrix,
 )
 from xgboost import XGBClassifier
 
@@ -42,8 +41,8 @@ def fit_xgb(X_train, y_train, cv_splits=5):
         "clf__colsample_bytree": [0.8, 1.0],
     }
     cv = StratifiedKFold(n_splits=cv_splits, shuffle=True, random_state=42)
-    # n_jobs at the GridSearchCV level only -- nesting parallelism with the
-    # estimator's own n_jobs crashes worker processes on Windows.
+    # n_jobs=-1 here AND on the estimator crashes worker processes on Windows,
+    # so keep the parallelism on the search only.
     search = GridSearchCV(pipe, param_grid, scoring="roc_auc", cv=cv, n_jobs=-1, verbose=0)
     search.fit(X_train, y_train)
     return search
@@ -56,12 +55,16 @@ def evaluate(model, X_test, y_test, name="model", threshold=0.5):
     auc = roc_auc_score(y_test, proba)
     pr_auc = average_precision_score(y_test, proba)
     cm = confusion_matrix(y_test, pred)
-    print(f"\n=== {name} (threshold={threshold}) ===")
+
+    print(f"\n{name} (threshold={threshold})")
     print(classification_report(y_test, pred, target_names=["Stay", "Churn"]))
     print("ROC-AUC:", round(auc, 4))
     print("PR-AUC :", round(pr_auc, 4))
     print("Confusion matrix:\n", cm)
-    return {"proba": proba, "auc": auc, "pr_auc": pr_auc,
-            "recall_churn": report["Churn"]["recall"],
-            "precision_churn": report["Churn"]["precision"],
-            "cm": cm}
+
+    return {
+        "proba": proba, "auc": auc, "pr_auc": pr_auc,
+        "recall_churn": report["Churn"]["recall"],
+        "precision_churn": report["Churn"]["precision"],
+        "cm": cm,
+    }

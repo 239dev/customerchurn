@@ -1,6 +1,6 @@
-"""Day 2-3 exploratory analysis: five charts, each with a written finding.
+"""Five EDA charts, each built around one finding.
 
-Usage: python -m src.eda
+python -m src.eda
 """
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -112,10 +112,7 @@ def chart_correlation(df):
     )
     corr = numeric.corr()
     fig, ax = plt.subplots(figsize=(5.5, 4.8))
-    # Diverging colormap, not sequential -- this data spans negative and
-    # positive correlations, and a single-hue ramp would make -1 and +1
-    # look equally "dark" instead of opposite.
-    cmap = sns.blend_palette(DIVERGING, as_cmap=True)
+    cmap = sns.blend_palette(DIVERGING, as_cmap=True)  # diverging, not sequential -- values go negative
     sns.heatmap(corr, annot=True, fmt=".2f", cmap=cmap, ax=ax, cbar=True,
                 linewidths=2, linecolor="#fcfcfb", vmin=-1, vmax=1, center=0,
                 annot_kws={"color": INK, "fontsize": 10})
@@ -132,14 +129,14 @@ def chart_correlation(df):
 
 def main():
     df = load_clean()
-    print("=== Churn by Contract ===")
+    print("Churn by contract:")
     print(chart_contract(df))
-    print("\n=== Churn by Tenure Bucket ===")
+    print("\nChurn by tenure bucket:")
     print(chart_tenure(df))
-    print("\n=== Churn by Internet Service ===")
+    print("\nChurn by internet service:")
     print(chart_internet(df))
     chart_monthly_charges(df)
-    print("\n=== Correlation ===")
+    print("\nCorrelation:")
     print(chart_correlation(df))
     print(f"\nSaved 5 figures to {FIG_DIR}/")
 

@@ -1,11 +1,8 @@
-"""Extension 1: probability calibration audit.
+"""Checks whether the model's predicted probabilities can be trusted, and if
+not, fixes them -- the whole threshold optimization in threshold.py assumes
+a customer scored at 0.30 really does churn 30% of the time.
 
-The cost-optimal threshold in src/threshold.py assumes predicted probabilities
-are literal frequencies (a customer scored at 0.30 churns 30% of the time).
-This audits that assumption and recomputes the threshold on calibrated
-probabilities.
-
-Usage: python -m src.calibration
+python -m src.calibration
 """
 import json
 import joblib
@@ -29,7 +26,6 @@ def main():
     artifact = joblib.load("models/churn_model_xgb_raw.joblib")
     uncal_model = artifact["model"]
     proba_uncal = uncal_model.predict_proba(X_test)[:, 1]
-
     brier_uncal = brier_score_loss(y_test, proba_uncal)
 
     calibrated = CalibratedClassifierCV(uncal_model, method="isotonic", cv=5)
@@ -64,7 +60,6 @@ def main():
     plt.savefig("reports/figures/calibration.png", dpi=150, bbox_inches="tight")
     plt.close()
 
-    # Recompute cost-optimal threshold on calibrated probabilities
     sweep_uncal = threshold_sweep(y_test, proba_uncal)
     sweep_cal = threshold_sweep(y_test, proba_cal)
     opt_uncal = sweep_uncal.loc[sweep_uncal["cost"].idxmin()]
@@ -84,13 +79,11 @@ def main():
     with open("reports/calibration_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    # This is the production artifact: calibrated probabilities + the
-    # threshold recomputed against them. models/churn_model_xgb_raw.joblib
-    # (uncalibrated) is kept around only because SHAP's TreeExplainer needs
-    # direct access to the underlying booster, which CalibratedClassifierCV wraps.
+    # this is the artifact that actually gets deployed -- calibrated
+    # probabilities + the threshold recomputed against them
     joblib.dump({"model": calibrated, "threshold": float(opt_cal["threshold"])},
                 "models/churn_model.joblib")
-    print("\nSaved calibration.png, calibration_summary.json, and models/churn_model.joblib (production artifact)")
+    print("\nSaved calibration.png, calibration_summary.json, and models/churn_model.joblib")
 
 
 if __name__ == "__main__":

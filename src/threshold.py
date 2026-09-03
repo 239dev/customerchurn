@@ -1,6 +1,6 @@
-"""Day 10-11: cost-based threshold optimization, plot, and sensitivity analysis.
+"""Cost-based threshold optimization + sensitivity analysis.
 
-Usage: python -m src.threshold
+python -m src.threshold
 """
 import numpy as np
 import pandas as pd
@@ -21,7 +21,7 @@ def plot_cost_curve(sweep, opt_threshold, opt_cost, default_cost,
     ax.axvline(opt_threshold, color=RED, ls="--", lw=1.3, zorder=1)
     ax.axvline(0.5, color=MUTED, ls=":", lw=1.3, zorder=1)
 
-    # Direct callouts instead of relying on a legend to connect lines to meaning.
+    # callouts instead of a legend -- easier to connect the line to what it means
     ax.annotate(
         f"Optimal: {opt_threshold:.2f}\n(${opt_cost/1000:,.0f}k)",
         xy=(opt_threshold, opt_cost / 1000), xytext=(opt_threshold + 0.10, opt_cost / 1000 - 8),
@@ -54,8 +54,7 @@ def sensitivity_analysis(y_test, proba):
             s = threshold_sweep(y_test, proba, ltv=ltv, eff=eff)
             best_t = s.loc[s["cost"].idxmin(), "threshold"]
             results.append({"effectiveness": eff, "ltv": ltv, "optimal_threshold": round(best_t, 3)})
-    sens = pd.DataFrame(results).pivot(index="effectiveness", columns="ltv", values="optimal_threshold")
-    return sens
+    return pd.DataFrame(results).pivot(index="effectiveness", columns="ltv", values="optimal_threshold")
 
 
 def plot_sensitivity(sens, out_path="reports/figures/threshold_sensitivity.png"):

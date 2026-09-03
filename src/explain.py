@@ -1,6 +1,6 @@
-"""Day 8-9: SHAP explainability for the tuned XGBoost model.
+"""SHAP explainability for the tuned XGBoost model.
 
-Usage: python -m src.explain
+python -m src.explain
 """
 import json
 import joblib
@@ -16,10 +16,10 @@ apply_style()
 
 
 def main():
-    # SHAP's TreeExplainer needs direct access to the XGBoost booster, so this
-    # explains the raw (uncalibrated) model. Calibration reshapes probabilities,
-    # not feature rankings, so the explanation still holds for the deployed
-    # (calibrated) model in models/churn_model.joblib.
+    # explaining the raw (uncalibrated) model -- TreeExplainer needs direct
+    # access to the booster, which CalibratedClassifierCV wraps. Calibration
+    # only reshapes probabilities, not feature importance, so this still
+    # applies to the calibrated model that actually gets deployed.
     artifact = joblib.load("models/churn_model_xgb_raw.joblib")
     model = artifact["model"]
     prep = model.named_steps["prep"]
@@ -33,7 +33,7 @@ def main():
     explainer = shap.TreeExplainer(clf)
     shap_values = explainer.shap_values(X_test_t)
 
-    # --- Bar chart: mean absolute impact, ranked ---
+    # ranked bar chart
     shap.summary_plot(shap_values, X_test_t, feature_names=feature_names,
                        plot_type="bar", show=False, max_display=12, color=BLUE)
     fig = plt.gcf()
@@ -51,21 +51,17 @@ def main():
     plt.savefig(f"{FIG_DIR}/shap_bar.png", dpi=150, bbox_inches="tight")
     plt.close()
 
-    # --- Beeswarm: direction + magnitude together ---
-    # Capped at 8 rows (not 12) and given a prominent worked example, rather
-    # than a small caption, since this chart type is unfamiliar to most
-    # readers and a dense 12-row version compounds that.
+    # beeswarm -- capped at 8 rows instead of 12, with the "how to read this"
+    # note pulled out into its own boxed callout instead of a tiny caption,
+    # since this chart type trips people up otherwise
     shap.summary_plot(shap_values, X_test_t, feature_names=feature_names, show=False, max_display=8)
     fig = plt.gcf()
     fig.set_facecolor(SURFACE)
     ax = plt.gca()
     ax.set_facecolor(SURFACE)
-    ax.set_title("")  # replaced by the fig-level title below, so ordering is explicit
+    ax.set_title("")  # title is drawn at the figure level below instead
     ax.set_xlabel("<- pushes prediction toward staying   |   pushes prediction toward churn ->")
 
-    # Built at the figure level (not title_block's axes-relative version) so
-    # the reading order is explicit top-to-bottom: finding -> context ->
-    # how to read it -> the chart itself.
     plt.tight_layout(rect=[0, 0.06, 1, 0.62])
     fig.text(0.02, 0.97, "Being on a month-to-month contract or new to the service\npushes predictions toward churn",
               ha="left", va="top", fontsize=12.5, fontweight="bold", color=INK)
@@ -83,20 +79,16 @@ def main():
     plt.savefig(f"{FIG_DIR}/shap_summary.png", dpi=150, bbox_inches="tight")
     plt.close()
 
-    # Rank features by mean |SHAP|
     mean_abs = np.abs(shap_values).mean(axis=0)
     ranking = pd.Series(mean_abs, index=raw_names).sort_values(ascending=False)
     ranking_readable = pd.Series(mean_abs, index=feature_names).sort_values(ascending=False)
-    print("=== Top 10 features by mean |SHAP value| ===")
+    print("Top 10 features by mean |SHAP value|:")
     print(ranking_readable.head(10))
     ranking.to_csv("reports/shap_ranking.csv")
     ranking_readable.to_csv("reports/shap_ranking_readable.csv")
 
-    # --- Dependence plot: tenure ---
-    # Built manually (not shap.dependence_plot) so the x-axis shows real
-    # months, not the standardized z-scores the model actually trains on --
-    # a z-score axis ("-1.3" to "1.6" for "tenure") is unreadable to anyone
-    # without the scaler in their head.
+    # tenure dependence, plotted by hand instead of shap.dependence_plot so the
+    # x-axis is real months and not the z-scored value the model actually sees
     tenure_idx = list(raw_names).index("num__tenure")
     fig, ax = plt.subplots(figsize=(7, 4.6))
     ax.scatter(X_test["tenure"], shap_values[:, tenure_idx], color=BLUE, alpha=0.35, s=18, edgecolors="none")
@@ -112,11 +104,9 @@ def main():
     plt.savefig(f"{FIG_DIR}/shap_tenure.png", dpi=150, bbox_inches="tight")
     plt.close()
 
-    # --- Month-to-month contract: a plain bar comparison, not a scatter ---
-    # Contract type is a yes/no factor, not a continuous one -- a dependence
-    # scatter (designed to show a trend across a range of values) just draws
-    # two disconnected clusters of dots with nothing to compare them by. A
-    # bar chart of the two group averages says the same thing far more directly.
+    # contract type is yes/no, not continuous, so a dependence scatter just
+    # draws two disconnected clumps of dots -- a bar of the two group
+    # averages says the same thing more directly
     contract_col = "cat__Contract_Month-to-month"
     if contract_col in raw_names:
         c_idx = list(raw_names).index(contract_col)
@@ -146,14 +136,13 @@ def main():
         plt.savefig(f"{FIG_DIR}/shap_contract.png", dpi=150, bbox_inches="tight")
         plt.close()
 
-    # --- Single-customer waterfall: highest-risk customer in test set ---
+    # waterfall for the single highest-risk customer in the test set
     proba = np.load("data/processed/proba_xgb.npy")
     top_idx = int(np.argmax(proba))
 
-    # Swap in the customer's real, human-scale values (72 months, not the
-    # standardized "-1.282" the model sees internally) for the numeric
-    # features only -- the one-hot categorical columns are already 0/1 and
-    # need no translation.
+    # swap the scaled numeric values back to their real units (72 months,
+    # not "-1.28") for display -- categorical columns are already 0/1 and
+    # don't need translating
     display_row = X_test_t[top_idx].copy()
     for i, name in enumerate(raw_names):
         if name.startswith("num__"):

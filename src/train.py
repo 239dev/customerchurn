@@ -1,13 +1,12 @@
-"""Train and evaluate the churn model end to end.
+"""End-to-end training run: baseline, logreg, tuned XGBoost, threshold.
 
-Usage: python -m src.train
+python -m src.train
 """
 import json
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.dummy import DummyClassifier
-from sklearn.metrics import roc_auc_score
 
 from .data import load_clean
 from .model import split, fit_logreg, fit_xgb, evaluate
@@ -22,28 +21,19 @@ def main():
 
     results = {}
 
-    # --- Majority-class baseline ---
-    dummy = DummyClassifier(strategy="most_frequent")
-    dummy.fit(X_train, y_train)
-    dummy_pred = dummy.predict(X_test)
-    dummy_acc = (dummy_pred == y_test).mean()
-    results["baseline"] = {"auc": 0.5, "recall_churn": 0.0, "precision_churn": None,
-                            "accuracy": dummy_acc}
+    dummy = DummyClassifier(strategy="most_frequent").fit(X_train, y_train)
+    dummy_acc = (dummy.predict(X_test) == y_test).mean()
     print(f"\nMajority-class baseline accuracy: {dummy_acc:.4f} (catches 0 churners)")
 
-    # --- Logistic regression ---
     logreg = fit_logreg(X_train, y_train)
     results["logreg"] = evaluate(logreg, X_test, y_test, name="Logistic Regression")
 
-    # --- XGBoost (tuned) ---
     search = fit_xgb(X_train, y_train)
     print("\nBest XGBoost params:", search.best_params_)
     print("Best CV ROC-AUC:", round(search.best_score_, 4))
     best = search.best_estimator_
     results["xgb"] = evaluate(best, X_test, y_test, name="XGBoost (tuned)")
-    results["xgb"]["cv_auc"] = search.best_score_
 
-    # --- Comparison table ---
     table = pd.DataFrame([
         {"Model": "Predict-majority baseline", "CV ROC-AUC": 0.500,
          "Test ROC-AUC": 0.500, "Recall (churn)": 0.00, "Precision (churn)": None},
@@ -56,11 +46,10 @@ def main():
          "Recall (churn)": round(results["xgb"]["recall_churn"], 2),
          "Precision (churn)": round(results["xgb"]["precision_churn"], 2)},
     ])
-    print("\n=== Model comparison ===")
+    print("\nModel comparison:")
     print(table.to_string(index=False))
     table.to_csv("reports/model_comparison.csv", index=False)
 
-    # --- Cost-optimal threshold (on XGBoost probabilities) ---
     proba_xgb = results["xgb"]["proba"]
     analytical_t = analytical_optimal_threshold()
     print(f"\nAnalytical optimal threshold: {analytical_t:.4f}")
@@ -98,15 +87,14 @@ def main():
     with open("reports/train_summary.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    # Saved as the "raw" artifact -- src/calibration.py audits this model's
-    # probabilities and writes the calibrated version to models/churn_model.joblib,
-    # which is the one actually recommended for deployment (see README).
+    # keep the raw (uncalibrated) model around too -- SHAP's TreeExplainer
+    # needs it directly, and calibration.py is what produces the actual
+    # models/churn_model.joblib used for deployment
     joblib.dump({"model": best, "threshold": float(opt["threshold"])},
                 "models/churn_model_xgb_raw.joblib")
     joblib.dump({"model": logreg}, "models/churn_model_logreg.joblib")
     print("\nSaved models/churn_model_xgb_raw.joblib and reports/train_summary.json")
 
-    # save test split + probs for downstream explain/calibration scripts
     X_test.to_csv("data/processed/X_test.csv", index=False)
     y_test.to_csv("data/processed/y_test.csv", index=False)
     np.save("data/processed/proba_xgb.npy", proba_xgb)

@@ -1,4 +1,4 @@
-"""Preprocessing pipeline: numeric scaling + categorical one-hot encoding."""
+"""Preprocessing: scale the numeric columns, one-hot everything else."""
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
@@ -10,11 +10,7 @@ def build_preprocessor(X):
     return ColumnTransformer(
         transformers=[
             ("num", StandardScaler(), NUMERIC),
-            (
-                "cat",
-                OneHotEncoder(handle_unknown="ignore", drop="if_binary"),
-                categorical,
-            ),
+            ("cat", OneHotEncoder(handle_unknown="ignore", drop="if_binary"), categorical),
         ],
         remainder="drop",
     )
