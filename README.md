@@ -15,8 +15,8 @@ threshold against actual retention economics instead of defaulting to 0.5.
 | Model | CV ROC-AUC | Test ROC-AUC | Recall (churn) | Precision (churn) |
 |---|---|---|---|---|
 | Predict-majority baseline | 0.500 | 0.500 | 0.00 | — |
-| Logistic regression | — | 0.841 | 0.78 | 0.50 |
-| XGBoost (tuned) | 0.845 | 0.842 | 0.79 | 0.52 |
+| Logistic regression | — | 0.842 | 0.79 | 0.51 |
+| XGBoost (tuned) | 0.846 | 0.843 | 0.79 | 0.52 |
 
 **Tuned XGBoost beats logistic regression by 0.001 AUC — noise, not signal.**
 For a retention team that needs to explain every individual offer, that gap
@@ -25,10 +25,10 @@ actually recommended for production; XGBoost is kept for SHAP-based feature
 discovery, where its interaction terms surface a slightly richer ranking (see
 below).
 
-**Headline finding:** the cost-minimizing classification threshold is **0.13**
+**Headline finding:** the cost-minimizing classification threshold is **0.12**
 on calibrated probabilities — not the default 0.50. Operating there instead of
-at 0.50 reduces expected retention cost by **$23.79 per customer**, or
-**~$1.19M annually** at a 50,000-customer base.
+at 0.50 reduces expected retention cost by **$27.61 per customer**, or
+**~$1.38M annually** at a 50,000-customer base.
 
 ![Threshold cost curve](reports/figures/threshold_cost_curve.png)
 
@@ -51,7 +51,7 @@ right threshold depends on what each kind of mistake costs.
 
 **2. Empirically**, by sweeping the threshold against the confusion matrix and
 the per-outcome cost — on the *uncalibrated* XGBoost model, this landed at
-**0.23**, noticeably above the analytical prediction. That gap turned out to be
+**0.24**, noticeably above the analytical prediction. That gap turned out to be
 real, not noise, and is resolved in step 3.
 
 **3. After a calibration audit.** Boosted trees trained with
@@ -59,15 +59,15 @@ real, not noise, and is resolved in step 3.
 does not necessarily churn 30% of the time — so the entire cost analysis rests
 on an assumption worth checking rather than trusting. Isotonic calibration
 improved Brier score from **0.163 → 0.136**, and on the calibrated
-probabilities the empirical optimum shifted to **0.13** — almost exactly the
-analytical value. **The 0.23-vs-0.12 gap was a calibration artifact, not a
+probabilities the empirical optimum shifted to **0.12** — essentially exactly
+the analytical value. **The 0.24-vs-0.12 gap was a calibration artifact, not a
 real economic effect**, and the audit is what tells the two apart instead of
 leaving it unexplained.
 
 ![Calibration curve](reports/figures/calibration.png)
 
 The model shipped in `models/churn_model.joblib` is the calibrated one,
-operating at threshold 0.13 — the threshold is saved *inside* the artifact
+operating at threshold 0.12 — the threshold is saved *inside* the artifact
 alongside the model, because it's part of the deployed decision, not a
 notebook variable.
 
@@ -79,13 +79,13 @@ effectiveness, columns = LTV, cells = optimal threshold):
 
 | Effectiveness | LTV $800 | LTV $1,400 | LTV $2,200 |
 |---|---|---|---|
-| 0.15 | 0.76 | 0.51 | 0.25 |
-| 0.30 | 0.41 | **0.23** | 0.09 |
-| 0.50 | 0.23 | 0.09 | 0.09 |
+| 0.15 | 0.75 | 0.46 | 0.29 |
+| 0.30 | 0.33 | **0.24** | 0.12 |
+| 0.50 | 0.28 | 0.12 | 0.12 |
 
 **Honest reading:** the optimal threshold is *not* uniformly low. At weak
 offers (15% effective) combined with low customer value ($800 LTV), the
-cost-minimizing threshold rises to 0.76 — close to never intervening, because
+cost-minimizing threshold rises to 0.75 — close to never intervening, because
 a cheap customer saved by a weak offer barely clears the cost of the offer
 itself. The recommendation to move well below 0.5 holds for the
 moderate-to-high effectiveness/LTV region that's plausible for this business
@@ -98,23 +98,25 @@ is for.
 
 ![SHAP feature importance](reports/figures/shap_bar.png)
 
-1. **Contract type dominates.** `Contract_Month-to-month` carries the largest
-   mean |SHAP| contribution in the model, and month-to-month customers churn
-   at **42.7%** versus **11.3%** (one-year) and **2.8%** (two-year) in the raw
-   data — roughly 4x and 15x. Migrating even 10% of the month-to-month base to
-   an annual contract via a discount incentive addresses the single largest
-   identifiable risk pool.
-2. **Risk concentrates in the first year.** `tenure` ranks second. Churn falls
+1. **Contract type dominates.** Being on a month-to-month contract carries the
+   single largest mean |SHAP| contribution in the model — larger than any
+   dollar figure — and month-to-month customers churn at **42.7%** versus
+   **11.3%** (one-year) and **2.8%** (two-year) in the raw data — roughly 4x
+   and 15x. Migrating even 10% of the month-to-month base to an annual
+   contract via a discount incentive addresses the single largest identifiable
+   risk pool.
+2. **Risk concentrates in the first year.** Tenure ranks second. Churn falls
    from 52.9% in a customer's first six months to 9.5% after four years.
    Retention spend is more efficient front-loaded into onboarding than spread
    evenly across the base.
-3. **Fiber optic is an independent risk factor**, not just a byproduct of
-   price — it ranks separately from `MonthlyCharges` in the SHAP importance
-   list, at **41.9%** churn versus **19.0%** for DSL, despite fiber being the
-   pricier tier. That's inconsistent with a purely price-driven story and
-   points at a service-quality or expectation-setting problem. **The model
-   can't answer why — the next step is pulling support-ticket and outage
-   volume by service type.**
+3. **Fiber optic is an independent risk factor** — it ranks *third*, ahead of
+   both monthly and total charges, meaning simply being on fiber matters more
+   to the model than the dollar amount on the bill. Fiber customers churn at
+   **41.9%** versus **19.0%** for DSL, despite being the pricier tier. That's
+   inconsistent with a purely price-driven story and points at a
+   service-quality or expectation-setting problem. **The model can't answer
+   why — the next step is pulling support-ticket and outage volume by service
+   type.**
 
 ## Data quality note
 
@@ -124,6 +126,16 @@ is for.
 Dropping them would have removed exactly the zero-tenure segment, which is the
 highest-churn segment in the dataset (52.9% in the first six months) — the
 wrong rows to lose.
+
+**A second data-cleaning bug, caught late.** `data.py` collapses redundant
+categories (e.g. "No internet service" → "No") by checking
+`df[col].dtype == object`. Pandas 3.0 changed the default dtype for string
+columns from `object` to a new `str` dtype, which silently broke that check —
+the collapse became a no-op, and every affected column carried extra,
+functionally-duplicate one-hot categories that diluted their true SHAP
+signal. Fixed by checking for either dtype. The practical effect: fiber optic
+internet's true importance had been understated — after the fix it moved from
+6th to 3rd in the SHAP ranking, ahead of both charge amounts (see below).
 
 ## Limitations and next steps
 
@@ -189,6 +201,7 @@ teleco-churn/
 │   ├── explain.py            # SHAP
 │   ├── threshold.py          # threshold optimization + sensitivity analysis
 │   ├── calibration.py        # probability calibration audit
+│   ├── viz.py                 # shared chart styling + human-readable feature labels
 │   └── train.py              # end-to-end training entry point
 ├── reports/
 │   └── figures/              # exported PNGs (embedded above)

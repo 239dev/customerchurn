@@ -9,32 +9,17 @@ Usage: python -m src.calibration
 """
 import json
 import joblib
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from sklearn.calibration import CalibratedClassifierCV, calibration_curve
 from sklearn.metrics import brier_score_loss
 
 from .data import load_clean
 from .model import split
 from .evaluate import threshold_sweep
+from .viz import apply_style, title_block, caption, BLUE, ORANGE, MUTED
 
-BLUE = "#2a78d6"
-ORANGE = "#eb6834"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-SURFACE = "#fcfcfb"
-INK = "#0b0b0b"
-
-mpl.rcParams.update({
-    "figure.facecolor": SURFACE, "axes.facecolor": SURFACE,
-    "axes.edgecolor": GRID, "axes.labelcolor": "#52514e", "text.color": INK,
-    "xtick.color": MUTED, "ytick.color": MUTED, "grid.color": GRID,
-    "font.family": "sans-serif", "font.sans-serif": ["Segoe UI", "DejaVu Sans", "Arial"],
-    "axes.grid": True, "grid.linewidth": 0.6,
-    "axes.spines.top": False, "axes.spines.right": False,
-})
+apply_style()
 
 
 def main():
@@ -58,15 +43,24 @@ def main():
     prob_true_u, prob_pred_u = calibration_curve(y_test, proba_uncal, n_bins=10)
     prob_true_c, prob_pred_c = calibration_curve(y_test, proba_cal, n_bins=10)
 
-    fig, ax = plt.subplots(figsize=(5.5, 5.5))
-    ax.plot([0, 1], [0, 1], color=MUTED, ls=":", lw=1.5, label="Perfectly calibrated")
-    ax.plot(prob_pred_u, prob_true_u, "o-", color=ORANGE, lw=2, label="XGBoost (uncalibrated)")
-    ax.plot(prob_pred_c, prob_true_c, "o-", color=BLUE, lw=2, label="XGBoost (isotonic)")
-    ax.set_xlabel("Mean predicted probability")
-    ax.set_ylabel("Observed churn fraction")
-    ax.set_title("Isotonic calibration pulls predictions toward the diagonal", fontsize=11, loc="left")
-    ax.legend(frameon=False, loc="upper left")
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.plot([0, 1], [0, 1], color=MUTED, ls=":", lw=1.5, label="Perfect calibration")
+    ax.plot(prob_pred_u, prob_true_u, "o-", color=ORANGE, lw=2, markersize=6,
+             label=f"Before calibration (Brier {brier_uncal:.3f})")
+    ax.plot(prob_pred_c, prob_true_c, "o-", color=BLUE, lw=2, markersize=6,
+             label=f"After calibration (Brier {brier_cal:.3f})")
+    ax.set_xlabel("Model's predicted churn probability")
+    ax.set_ylabel("How often those customers actually churned")
+    title_block(
+        ax,
+        "The raw model overstates confidence -- calibration corrects it",
+        subtitle="Customers the model scored around 0.8 actually churned less often than that, before this fix",
+    )
+    ax.legend(frameon=False, loc="upper left", fontsize=9)
     plt.tight_layout()
+    caption(fig, "A model is 'calibrated' if, among customers it scores at 80% churn risk, "
+                 "about 80% actually churn. Dots above the dotted line mean the model wasn't confident enough; "
+                 "below it means overconfident.")
     plt.savefig("reports/figures/calibration.png", dpi=150, bbox_inches="tight")
     plt.close()
 

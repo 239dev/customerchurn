@@ -1,41 +1,27 @@
 ,0
-cat__Contract_Month-to-month,0.67054456
-num__tenure,0.45542172
-num__MonthlyCharges,0.26905712
-cat__OnlineSecurity_No,0.24426375
-num__TotalCharges,0.24031408
-cat__InternetService_Fiber optic,0.21468008
-cat__TechSupport_No,0.20841649
-cat__PaymentMethod_Electronic check,0.18505137
-cat__Contract_Two year,0.14313191
-cat__PaperlessBilling_Yes,0.12212779
-cat__MultipleLines_No,0.12142422
-cat__OnlineBackup_No,0.08355712
-cat__Contract_One year,0.07732645
-cat__StreamingMovies_Yes,0.07343149
-cat__Dependents_Yes,0.06922254
-cat__StreamingTV_Yes,0.058360104
-cat__InternetService_DSL,0.047469303
-cat__SeniorCitizen_Yes,0.044665385
-cat__Partner_Yes,0.033649765
-cat__PaymentMethod_Mailed check,0.031284593
-cat__gender_Male,0.030672627
-cat__PhoneService_Yes,0.02907256
-cat__StreamingTV_No,0.02314751
-cat__StreamingMovies_No,0.022564135
-cat__PaymentMethod_Bank transfer (automatic),0.019797666
-cat__DeviceProtection_No,0.01633038
-cat__InternetService_No,0.014212419
-cat__PaymentMethod_Credit card (automatic),0.012322225
-cat__TechSupport_Yes,0.012301558
-cat__MultipleLines_Yes,0.01101674
-cat__OnlineBackup_Yes,0.009682093
-cat__OnlineSecurity_Yes,0.0091888625
-cat__DeviceProtection_Yes,0.0051239333
-cat__OnlineSecurity_No internet service,0.001682304
-cat__MultipleLines_No phone service,0.0011872435
-cat__OnlineBackup_No internet service,0.0
-cat__DeviceProtection_No internet service,0.0
-cat__StreamingMovies_No internet service,0.0
-cat__TechSupport_No internet service,0.0
-cat__StreamingTV_No internet service,0.0
+cat__Contract_Month-to-month,0.65637743
+num__tenure,0.46218553
+cat__InternetService_Fiber optic,0.27779847
+num__MonthlyCharges,0.24238975
+num__TotalCharges,0.23449115
+cat__PaymentMethod_Electronic check,0.18407677
+cat__InternetService_No,0.17267264
+cat__Contract_Two year,0.15880993
+cat__OnlineSecurity_Yes,0.14363667
+cat__PaperlessBilling_Yes,0.14264403
+cat__MultipleLines_Yes,0.11815908
+cat__StreamingMovies_Yes,0.11619767
+cat__TechSupport_Yes,0.112695254
+cat__StreamingTV_Yes,0.09767542
+cat__Contract_One year,0.08350322
+cat__Dependents_Yes,0.061238
+cat__SeniorCitizen_Yes,0.052025225
+cat__OnlineBackup_Yes,0.051388998
+cat__PhoneService_Yes,0.048434105
+cat__PaymentMethod_Mailed check,0.033769026
+cat__gender_Male,0.029425457
+cat__PaymentMethod_Bank transfer (automatic),0.02223024
+cat__Partner_Yes,0.020761482
+cat__PaymentMethod_Credit card (automatic),0.018187942
+cat__InternetService_DSL,0.015448211
+cat__DeviceProtection_Yes,0.0044202153

@@ -1,12 +1,12 @@
 {
-  "cat__Contract_Month-to-month": 0.6705445647239685,
-  "num__tenure": 0.45542171597480774,
-  "num__MonthlyCharges": 0.26905712485313416,
-  "cat__OnlineSecurity_No": 0.24426375329494476,
-  "num__TotalCharges": 0.2403140813112259,
-  "cat__InternetService_Fiber optic": 0.21468007564544678,
-  "cat__TechSupport_No": 0.20841649174690247,
-  "cat__PaymentMethod_Electronic check": 0.18505136668682098,
-  "cat__Contract_Two year": 0.14313191175460815,
-  "cat__PaperlessBilling_Yes": 0.12212778627872467
+  "Contract: Month-to-month": 0.6563774347305298,
+  "Tenure (months)": 0.4621855318546295,
+  "Internet Service: Fiber optic": 0.27779847383499146,
+  "Monthly Charges ($)": 0.2423897534608841,
+  "Total Charges ($)": 0.23449115455150604,
+  "Payment Method: Electronic check": 0.18407677114009857,
+  "Internet Service: No": 0.17267264425754547,
+  "Contract: Two year": 0.15880993008613586,
+  "Online Security: Yes": 0.14363667368888855,
+  "Paperless Billing": 0.1426440328359604
 }

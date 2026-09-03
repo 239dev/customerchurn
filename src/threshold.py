@@ -2,44 +2,48 @@
 
 Usage: python -m src.threshold
 """
-import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 
-from .evaluate import expected_cost, threshold_sweep, analytical_optimal_threshold
+from .evaluate import threshold_sweep, analytical_optimal_threshold
+from .viz import apply_style, title_block, caption, BLUE, RED, MUTED, INK
 
-BLUE = "#2a78d6"
-ORANGE = "#eb6834"
-RED = "#e34948"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-SURFACE = "#fcfcfb"
-INK = "#0b0b0b"
-
-mpl.rcParams.update({
-    "figure.facecolor": SURFACE, "axes.facecolor": SURFACE,
-    "axes.edgecolor": GRID, "axes.labelcolor": "#52514e", "text.color": INK,
-    "xtick.color": MUTED, "ytick.color": MUTED, "grid.color": GRID,
-    "font.family": "sans-serif", "font.sans-serif": ["Segoe UI", "DejaVu Sans", "Arial"],
-    "axes.grid": True, "grid.linewidth": 0.6,
-    "axes.spines.top": False, "axes.spines.right": False,
-})
+apply_style()
 
 
-def plot_cost_curve(sweep, opt_threshold, out_path="reports/figures/threshold_cost_curve.png"):
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+def plot_cost_curve(sweep, opt_threshold, opt_cost, default_cost,
+                     out_path="reports/figures/threshold_cost_curve.png"):
+    savings = default_cost - opt_cost
+    fig, ax = plt.subplots(figsize=(8, 4.8))
     ax.plot(sweep["threshold"], sweep["cost"] / 1000, lw=2.5, color=BLUE)
-    ax.axvline(opt_threshold, color=RED, ls="--", lw=1.5,
-               label=f"Empirical optimum = {opt_threshold:.2f}")
-    ax.axvline(0.5, color=MUTED, ls=":", lw=1.5, label="Default = 0.50")
-    ax.set_xlabel("Classification threshold")
-    ax.set_ylabel("Expected total cost ($000s)")
-    ax.set_title("Retention cost is minimized well below the default threshold", fontsize=11, loc="left")
-    ax.legend(frameon=False)
+
+    ax.axvline(opt_threshold, color=RED, ls="--", lw=1.3, zorder=1)
+    ax.axvline(0.5, color=MUTED, ls=":", lw=1.3, zorder=1)
+
+    # Direct callouts instead of relying on a legend to connect lines to meaning.
+    ax.annotate(
+        f"Optimal: {opt_threshold:.2f}\n(${opt_cost/1000:,.0f}k)",
+        xy=(opt_threshold, opt_cost / 1000), xytext=(opt_threshold + 0.10, opt_cost / 1000 - 8),
+        fontsize=9.5, color=RED, fontweight="bold",
+        arrowprops=dict(arrowstyle="-", color=RED, lw=1),
+    )
+    ax.annotate(
+        f"Default: 0.50\n(${default_cost/1000:,.0f}k)",
+        xy=(0.5, default_cost / 1000), xytext=(0.56, default_cost / 1000 + 4),
+        fontsize=9.5, color=MUTED,
+        arrowprops=dict(arrowstyle="-", color=MUTED, lw=1),
+    )
+
+    ax.set_xlabel("Classification threshold (act on customers scored above this)")
+    ax.set_ylabel("Expected retention cost, $000s (lower is better)")
+    title_block(
+        ax,
+        f"Acting at 0.50 costs ${savings/1000:,.0f}k more than necessary on this test set",
+        subtitle="Total expected cost of missed churners + wasted offers, at every possible action threshold",
+    )
     plt.tight_layout()
-    plt.savefig(out_path, dpi=150)
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
 
 
@@ -55,16 +59,24 @@ def sensitivity_analysis(y_test, proba):
 
 
 def plot_sensitivity(sens, out_path="reports/figures/threshold_sensitivity.png"):
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(7, 4.6))
     seq = ["#cde2fb", "#6da7ec", "#184f95"]
     for i, ltv in enumerate(sens.columns):
-        ax.plot(sens.index, sens[ltv], marker="o", color=seq[i], lw=2, label=f"LTV = ${ltv}")
-    ax.set_xlabel("Offer effectiveness")
-    ax.set_ylabel("Optimal threshold")
-    ax.set_title("Optimal threshold stays well under 0.5 across every scenario", fontsize=11, loc="left")
-    ax.legend(frameon=False)
+        ax.plot(sens.index, sens[ltv], marker="o", markersize=7, color=seq[i], lw=2.2,
+                label=f"Customer value: ${ltv}")
+    ax.axhline(0.5, color=MUTED, ls=":", lw=1.2)
+    ax.text(sens.index.max(), 0.52, "Default threshold (0.50)", fontsize=8.5, color=MUTED, ha="right")
+    ax.set_xlabel("Offer effectiveness (share of would-be churners actually saved)")
+    ax.set_ylabel("Cost-minimizing threshold")
+    title_block(
+        ax,
+        "The right threshold is almost always well below the 0.50 default",
+        subtitle="How the optimal threshold shifts as the retention-offer assumptions change",
+    )
+    ax.legend(frameon=False, loc="upper right", fontsize=9)
+    ax.set_ylim(0, max(0.85, sens.values.max() * 1.15))
     plt.tight_layout()
-    plt.savefig(out_path, dpi=150)
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close()
 
 
@@ -81,7 +93,7 @@ def main():
     print(f"Empirical threshold : {opt['threshold']:.4f}  cost=${opt['cost']:,.0f}")
     print(f"Default (0.50)      : cost=${default_row['cost']:,.0f}")
 
-    plot_cost_curve(sweep, opt["threshold"])
+    plot_cost_curve(sweep, opt["threshold"], opt["cost"], default_row["cost"])
 
     sens = sensitivity_analysis(y_test, proba)
     print("\nSensitivity (rows=effectiveness, cols=LTV):")

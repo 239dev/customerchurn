@@ -3,41 +3,14 @@
 Usage: python -m src.eda
 """
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import seaborn as sns
 import pandas as pd
-import numpy as np
 
 from .data import load_clean
+from .viz import apply_style, title_block, caption, BLUE, ORANGE, INK, DIVERGING
 
 FIG_DIR = "reports/figures"
-
-# --- palette (validated categorical + sequential ramp) ---
-BLUE = "#2a78d6"     # slot 1 -- "No" / stay
-ORANGE = "#eb6834"   # slot 2 -- "Yes" / churn
-INK = "#0b0b0b"
-SECONDARY_INK = "#52514e"
-MUTED = "#898781"
-GRID = "#e1e0d9"
-SURFACE = "#fcfcfb"
-SEQ_BLUE = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
-
-mpl.rcParams.update({
-    "figure.facecolor": SURFACE,
-    "axes.facecolor": SURFACE,
-    "axes.edgecolor": GRID,
-    "axes.labelcolor": SECONDARY_INK,
-    "text.color": INK,
-    "xtick.color": MUTED,
-    "ytick.color": MUTED,
-    "grid.color": GRID,
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Segoe UI", "DejaVu Sans", "Arial"],
-    "axes.grid": True,
-    "grid.linewidth": 0.6,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-})
+apply_style()
 
 
 def churn_rate_by(df, col):
@@ -45,16 +18,24 @@ def churn_rate_by(df, col):
 
 
 def chart_contract(df):
-    fig, ax = plt.subplots(figsize=(7, 4))
     rates = churn_rate_by(df, "Contract")
+    fig, ax = plt.subplots(figsize=(7, 4.3))
     ax.bar(rates.index, rates.values, color=BLUE, width=0.55)
     ax.set_ylabel("Churn rate (%)")
-    ax.set_title("Month-to-month customers churn at ~4x the rate of one-year,\n~15x the rate of two-year contracts", fontsize=11, loc="left")
+    ratio_1yr = rates.iloc[0] / rates.iloc[1]
+    ratio_2yr = rates.iloc[0] / rates.iloc[2]
+    title_block(
+        ax,
+        f"Month-to-month customers churn ~{ratio_1yr:.0f}x more than 1-year,\n"
+        f"~{ratio_2yr:.0f}x more than 2-year contracts",
+        subtitle="Churn rate by contract length, all 7,043 customers",
+    )
     for i, v in enumerate(rates.values):
-        ax.text(i, v + 1.5, f"{v:.1f}%", ha="center", color=INK, fontsize=10)
-    ax.set_ylim(0, max(rates.values) * 1.2)
+        ax.text(i, v + 1.5, f"{v:.1f}%", ha="center", color=INK, fontsize=10, fontweight="bold")
+    ax.set_ylim(0, max(rates.values) * 1.25)
+    ax.set_xlabel("")
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/churn_by_contract.png", dpi=150)
+    plt.savefig(f"{FIG_DIR}/churn_by_contract.png", dpi=150, bbox_inches="tight")
     plt.close()
     return rates
 
@@ -63,62 +44,88 @@ def chart_tenure(df):
     df = df.copy()
     df["tenure_bucket"] = pd.cut(
         df["tenure"], bins=[-1, 6, 12, 24, 48, 72],
-        labels=["0-6mo", "7-12mo", "13-24mo", "25-48mo", "49-72mo"]
+        labels=["0-6 mo", "7-12 mo", "13-24 mo", "25-48 mo", "49-72 mo"]
     )
     rates = df.groupby("tenure_bucket", observed=True)["Churn"].mean() * 100
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(7, 4.3))
     ax.bar(rates.index.astype(str), rates.values, color=BLUE, width=0.55)
     ax.set_ylabel("Churn rate (%)")
-    ax.set_title("Churn risk is concentrated in a customer's first six months", fontsize=11, loc="left")
+    title_block(
+        ax,
+        f"A customer's risk of leaving falls from {rates.iloc[0]:.0f}% to "
+        f"{rates.iloc[-1]:.0f}% the longer they stay",
+        subtitle="Churn rate by tenure, all 7,043 customers -- risk is front-loaded into the first year",
+    )
     for i, v in enumerate(rates.values):
-        ax.text(i, v + 1, f"{v:.1f}%", ha="center", color=INK, fontsize=10)
+        ax.text(i, v + 1, f"{v:.1f}%", ha="center", color=INK, fontsize=10, fontweight="bold")
+    ax.set_xlabel("Time as a customer")
     ax.set_ylim(0, max(rates.values) * 1.25)
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/churn_by_tenure.png", dpi=150)
+    plt.savefig(f"{FIG_DIR}/churn_by_tenure.png", dpi=150, bbox_inches="tight")
     plt.close()
     return rates
 
 
 def chart_internet(df):
     rates = churn_rate_by(df, "InternetService")
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(7, 4.3))
     ax.bar(rates.index, rates.values, color=BLUE, width=0.5)
     ax.set_ylabel("Churn rate (%)")
-    ax.set_title("Fiber optic customers churn far more than DSL,\ndespite paying more per month", fontsize=11, loc="left")
+    title_block(
+        ax,
+        "Fiber optic customers churn more than DSL customers,\ndespite paying more per month",
+        subtitle="Churn rate by internet service type -- inconsistent with a price-driven explanation",
+    )
     for i, v in enumerate(rates.values):
-        ax.text(i, v + 1, f"{v:.1f}%", ha="center", color=INK, fontsize=10)
+        ax.text(i, v + 1, f"{v:.1f}%", ha="center", color=INK, fontsize=10, fontweight="bold")
+    ax.set_xlabel("")
     ax.set_ylim(0, max(rates.values) * 1.25)
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/churn_by_internet.png", dpi=150)
+    plt.savefig(f"{FIG_DIR}/churn_by_internet.png", dpi=150, bbox_inches="tight")
     plt.close()
     return rates
 
 
 def chart_monthly_charges(df):
-    fig, ax = plt.subplots(figsize=(7, 4.5))
+    fig, ax = plt.subplots(figsize=(7, 4.6))
     for val, color, label in [(0, BLUE, "Stayed"), (1, ORANGE, "Churned")]:
         sns.kdeplot(df.loc[df["Churn"] == val, "MonthlyCharges"], ax=ax,
                     color=color, fill=True, alpha=0.25, linewidth=2, label=label)
     ax.set_xlabel("Monthly charges ($)")
-    ax.set_ylabel("Density")
-    ax.set_title("Churners skew toward higher monthly charges", fontsize=11, loc="left")
-    ax.legend(frameon=False)
+    ax.set_ylabel("Share of customers")
+    ax.set_yticklabels([])
+    title_block(
+        ax,
+        "Customers who churn tend to pay more per month",
+        subtitle="Distribution of monthly charges, split by outcome -- a marginal view, isolated further via SHAP",
+    )
+    ax.legend(frameon=False, loc="upper left")
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/monthly_charges_by_churn.png", dpi=150)
+    plt.savefig(f"{FIG_DIR}/monthly_charges_by_churn.png", dpi=150, bbox_inches="tight")
     plt.close()
 
 
 def chart_correlation(df):
-    numeric = df[["tenure", "MonthlyCharges", "TotalCharges", "Churn"]]
+    numeric = df[["tenure", "MonthlyCharges", "TotalCharges", "Churn"]].rename(
+        columns={"tenure": "Tenure", "MonthlyCharges": "Monthly\nCharges",
+                 "TotalCharges": "Total\nCharges", "Churn": "Churn"}
+    )
     corr = numeric.corr()
-    fig, ax = plt.subplots(figsize=(5.5, 4.5))
-    cmap = sns.color_palette(SEQ_BLUE, as_cmap=True)
+    fig, ax = plt.subplots(figsize=(5.5, 4.8))
+    # Diverging colormap, not sequential -- this data spans negative and
+    # positive correlations, and a single-hue ramp would make -1 and +1
+    # look equally "dark" instead of opposite.
+    cmap = sns.blend_palette(DIVERGING, as_cmap=True)
     sns.heatmap(corr, annot=True, fmt=".2f", cmap=cmap, ax=ax, cbar=True,
-                linewidths=2, linecolor=SURFACE, vmin=-1, vmax=1,
-                annot_kws={"color": INK})
-    ax.set_title("tenure and TotalCharges are highly correlated (r=0.83)", fontsize=11, loc="left")
+                linewidths=2, linecolor="#fcfcfb", vmin=-1, vmax=1, center=0,
+                annot_kws={"color": INK, "fontsize": 10})
+    title_block(
+        ax,
+        "Tenure and total charges move together closely (r=0.83)",
+        subtitle="Correlation between numeric fields -- expected, since total charges accrue over tenure",
+    )
     plt.tight_layout()
-    plt.savefig(f"{FIG_DIR}/correlation_heatmap.png", dpi=150)
+    plt.savefig(f"{FIG_DIR}/correlation_heatmap.png", dpi=150, bbox_inches="tight")
     plt.close()
     return corr
 

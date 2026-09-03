@@ -33,11 +33,17 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     # as a third level that is functionally identical to "No" for
     # modeling purposes. Collapsing reduces sparsity after one-hot
     # encoding without losing signal (InternetService already carries it).
-    for col in df.columns:
-        if df[col].dtype == object:
-            df[col] = df[col].replace(
-                {"No internet service": "No", "No phone service": "No"}
-            )
+    #
+    # NOTE: pandas >= 3.0 defaults string columns to its new "str" dtype
+    # instead of the legacy "object" dtype, so `df[col].dtype == object`
+    # silently stops matching string columns and this collapse becomes a
+    # no-op. is_string_dtype covers both.
+    string_cols = [c for c in df.columns
+                   if pd.api.types.is_object_dtype(df[c]) or pd.api.types.is_string_dtype(df[c])]
+    for col in string_cols:
+        df[col] = df[col].replace(
+            {"No internet service": "No", "No phone service": "No"}
+        )
 
     # Target as int
     df["Churn"] = (df["Churn"] == "Yes").astype(int)
