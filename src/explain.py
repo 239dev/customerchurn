@@ -52,20 +52,34 @@ def main():
     plt.close()
 
     # --- Beeswarm: direction + magnitude together ---
-    shap.summary_plot(shap_values, X_test_t, feature_names=feature_names, show=False, max_display=12)
+    # Capped at 8 rows (not 12) and given a prominent worked example, rather
+    # than a small caption, since this chart type is unfamiliar to most
+    # readers and a dense 12-row version compounds that.
+    shap.summary_plot(shap_values, X_test_t, feature_names=feature_names, show=False, max_display=8)
     fig = plt.gcf()
     fig.set_facecolor(SURFACE)
     ax = plt.gca()
     ax.set_facecolor(SURFACE)
-    title_block(
-        ax,
-        "Being on a month-to-month contract or new to the service\npushes predictions toward churn",
-        subtitle="Each dot is one customer. Color = that customer's value for the factor; position = effect on the prediction",
-    )
+    ax.set_title("")  # replaced by the fig-level title below, so ordering is explicit
     ax.set_xlabel("<- pushes prediction toward staying   |   pushes prediction toward churn ->")
-    plt.tight_layout(rect=[0, 0.06, 1, 1])
-    caption(fig, "Red = a high value for that factor (e.g. long tenure, high charges); blue = a low value. "
-                 "Dots to the right of center increase predicted churn risk; dots to the left decrease it.")
+
+    # Built at the figure level (not title_block's axes-relative version) so
+    # the reading order is explicit top-to-bottom: finding -> context ->
+    # how to read it -> the chart itself.
+    plt.tight_layout(rect=[0, 0.06, 1, 0.62])
+    fig.text(0.02, 0.97, "Being on a month-to-month contract or new to the service\npushes predictions toward churn",
+              ha="left", va="top", fontsize=12.5, fontweight="bold", color=INK)
+    fig.text(0.02, 0.845, "Each dot is one customer, for the 8 factors that matter most",
+              ha="left", va="top", fontsize=9.5, color="#52514e")
+    fig.text(
+        0.02, 0.80,
+        "How to read the top row: a red dot is a customer who IS on a month-to-month contract; a blue dot is "
+        "a customer who is NOT. Red sits to the right, meaning being on that contract raises predicted risk -- "
+        "blue sits to the left, meaning not being on it lowers it.\n"
+        "Every other row works the same way: red = a high value for that factor (long tenure, high charges, etc.), blue = a low value.",
+        ha="left", va="top", fontsize=9.3, color=INK, wrap=True,
+        bbox=dict(boxstyle="round,pad=0.6", facecolor="#f0efec", edgecolor="#c3c2b7", linewidth=0.8),
+    )
     plt.savefig(f"{FIG_DIR}/shap_summary.png", dpi=150, bbox_inches="tight")
     plt.close()
 
@@ -98,20 +112,36 @@ def main():
     plt.savefig(f"{FIG_DIR}/shap_tenure.png", dpi=150, bbox_inches="tight")
     plt.close()
 
-    # --- Dependence plot: month-to-month contract ---
+    # --- Month-to-month contract: a plain bar comparison, not a scatter ---
+    # Contract type is a yes/no factor, not a continuous one -- a dependence
+    # scatter (designed to show a trend across a range of values) just draws
+    # two disconnected clusters of dots with nothing to compare them by. A
+    # bar chart of the two group averages says the same thing far more directly.
     contract_col = "cat__Contract_Month-to-month"
     if contract_col in raw_names:
         c_idx = list(raw_names).index(contract_col)
-        fig, ax = plt.subplots(figsize=(7, 4.6))
-        shap.dependence_plot(c_idx, shap_values, X_test_t, feature_names=feature_names,
-                              ax=ax, show=False, interaction_index=None, color=ORANGE)
+        on_contract = X_test_t[:, c_idx] == 1
+        avg_effect_on = shap_values[on_contract, c_idx].mean()
+        avg_effect_off = shap_values[~on_contract, c_idx].mean()
+
+        fig, ax = plt.subplots(figsize=(6.5, 4.3))
+        bars = ax.bar(
+            ["Not on month-to-month\n(1-year or 2-year contract)", "On month-to-month\ncontract"],
+            [avg_effect_off, avg_effect_on], color=[BLUE, ORANGE], width=0.5,
+        )
+        for bar, val in zip(bars, [avg_effect_off, avg_effect_on]):
+            va = "bottom" if val >= 0 else "top"
+            offset = 0.02 if val >= 0 else -0.02
+            ax.text(bar.get_x() + bar.get_width() / 2, val + offset, f"{val:+.2f}",
+                    ha="center", va=va, fontsize=11, fontweight="bold", color=INK)
+        ax.axhline(0, color="#c3c2b7", lw=1)
         title_block(
             ax,
-            "Simply being on a month-to-month contract is the single\nlargest churn risk factor in the model",
-            subtitle="0 = not on a month-to-month contract, 1 = on a month-to-month contract",
+            "On average, being on a month-to-month contract adds\n"
+            f"{avg_effect_on - avg_effect_off:.2f} to a customer's predicted churn risk score",
+            subtitle="Average effect on the model's prediction, for each group of customers",
         )
-        ax.set_ylabel("Effect on predicted churn risk")
-        ax.set_xticks([0, 1])
+        ax.set_ylabel("Average effect on predicted churn risk")
         plt.tight_layout()
         plt.savefig(f"{FIG_DIR}/shap_contract.png", dpi=150, bbox_inches="tight")
         plt.close()
